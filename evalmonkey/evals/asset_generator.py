@@ -191,7 +191,7 @@ class EvalAssetGenerator:
         prompt_path = path / "improvement_prompt.md"
         prompt_path.write_text(prompt_md, encoding="utf-8")
 
-        return str(path.resolve())
+        return str(path)
 
     def export_to_langfuse(self, dataset_name: str) -> bool:
         """

@@ -21,10 +21,6 @@ SUPPORTED_BENCHMARKS: Dict[str, Dict[str, str]] = {
         "description": "GAIA: General AI Assistants testing on real-world web/tool multi-step tasks.",
         "agent_category": "Research",
     },
-    "webarena": {
-        "description": "WebArena: Highly interactive computer usage and browser manipulation.",
-        "agent_category": "Research",
-    },
     "human-eval": {
         "description": "HumanEval: Fundamental Python code generation from docstrings.",
         "agent_category": "Coding",
@@ -104,14 +100,18 @@ def load_standard_benchmark(benchmark_name: str, limit: int = 5) -> List[EvalSce
     Adapter for well-known standard agent benchmarks from HuggingFace Datasets.
     Automatically downloads datasets and converts them to standard HTTP scenarios!
     """
+    try:
+        from datasets import load_dataset
+    except ImportError:
+        raise ImportError("The 'datasets' library is required to run standard benchmarks. Please run 'pip install datasets'.")
+
     scenarios = []
     
     if benchmark_name.lower() == "gsm8k":
         try:
-            from datasets import load_dataset
             print(f"Loading {benchmark_name} from HuggingFace Datasets...")
             # We load the main split for GSM8k to evaluate the agent properly
-            dataset = load_dataset("gsm8k", "main", split="test")
+            dataset = load_dataset("gsm8k", "main", split="test", streaming=True)
             
             for idx, item in enumerate(dataset):
                 if idx >= limit:
@@ -126,16 +126,13 @@ def load_standard_benchmark(benchmark_name: str, limit: int = 5) -> List[EvalSce
                     input_payload={"question": item["question"]},
                     expected_behavior_rubric=f"The agent MUST use its reasoning or tools to mathematically deduce and return EXACTLY this answer logic: {target_str}."
                 ))
-        except ImportError:
-            print("datasets library not installed, run pip install datasets")
         except Exception as e:
             print(f"Failed to fetch {benchmark_name} from HF datasets: {e}")
             
     elif benchmark_name.lower() == "xlam":
         # A standard function calling benchmark 
         try:
-            from datasets import load_dataset
-            dataset = load_dataset("Salesforce/xlam-function-calling-60k", split="train")
+            dataset = load_dataset("Salesforce/xlam-function-calling-60k", split="train", streaming=True)
             for idx, item in enumerate(dataset):
                 if idx >= limit:
                     break
@@ -150,7 +147,6 @@ def load_standard_benchmark(benchmark_name: str, limit: int = 5) -> List[EvalSce
             
     elif benchmark_name.lower() in SUPPORTED_BENCHMARKS:
         try:
-            from datasets import load_dataset
             hf_map = {
                 # Original benchmarks
                 "mmlu":             ("cais/mmlu",                        "all",        "test",       "question",          "answer"),
@@ -163,7 +159,7 @@ def load_standard_benchmark(benchmark_name: str, limit: int = 5) -> List[EvalSce
                 # New benchmarks
                 "bbh":              ("lukaemon/bbh",                     "boolean_expressions", "test", "input",         "target"),
                 "winogrande":       ("winogrande",                       "winogrande_xl", "validation", "sentence",      "answer"),
-                "drop":             ("ucinlp/drop",                      None,         "validation", "passage",           "answer"),
+                "drop":             ("ucinlp/drop",                      None,         "validation", "passage",           "answers"),
                 "natural-questions":("google-research-datasets/natural_questions", "default", "validation", "question",  "answers"),
                 "hotpotqa":         ("hotpot_qa",                        "distractor", "validation", "question",          "answer"),
                 "mbpp":             ("mbpp",                             "sanitized",  "test",       "text",              "code"),
@@ -176,18 +172,22 @@ def load_standard_benchmark(benchmark_name: str, limit: int = 5) -> List[EvalSce
                 path, name, split, q_col, a_col = hf_map[benchmark_name.lower()]
                 desc = SUPPORTED_BENCHMARKS[benchmark_name.lower()]["description"]
                 print(f"Loading {benchmark_name} from HuggingFace Datasets ({path})...")
-                dataset = load_dataset(path, name, split=split) if name else load_dataset(path, split=split)
+                dataset = load_dataset(path, name, split=split, streaming=True) if name else load_dataset(path, split=split, streaming=True)
                 for idx, item in enumerate(dataset):
                     if idx >= limit:
                         break
+                    
+                    question_text = str(item.get(q_col, "No question"))
+                    if benchmark_name.lower() == "mmlu" and "choices" in item:
+                        question_text += f"\nChoices: {item['choices']}"
+
                     scenarios.append(EvalScenario(
                         id=f"{benchmark_name}_{idx}",
                         description=desc,
-                        input_payload={"question": str(item.get(q_col, "No question"))},
+                        input_payload={"question": question_text},
                         expected_behavior_rubric=f"Agent MUST deduce or output this answer: {item.get(a_col, 'Unknown')}"
                     ))
             else:
-                # Fallback for webarena etc.
                 print(f"Dataset mappings for {benchmark_name} are currently stubbed.")
         except Exception as e:
             print(f"Failed to fetch {benchmark_name} from HF datasets: {e}")
