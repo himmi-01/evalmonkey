@@ -41,5 +41,4 @@ env/
 history.json
 *.log
 demo_run.sh
-demo_rag_app.sh
 output/
