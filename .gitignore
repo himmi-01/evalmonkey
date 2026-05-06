@@ -42,3 +42,15 @@ history.json
 *.log
 demo_run.sh
 output/
+
+# UI — Node / Next.js
+ui/frontend/node_modules/
+ui/frontend/.next/
+ui/frontend/.swc/
+ui/frontend/next-env.d.ts
+ui/frontend/tsconfig.tsbuildinfo
+ui/frontend/package-lock.json
+ui/frontend/.env.local
+
+# UI — SQLite database (local data only)
+*.db

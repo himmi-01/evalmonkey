@@ -28,51 +28,84 @@ EvalMonkey natively supports evaluating ANY LLM: **AWS Bedrock**, **Azure**, **G
 
 ## 🚀 At a Glance
 - **8 Agent Frameworks natively supported**: CrewAI, LangChain, OpenAI Agents, Microsoft AutoGen, AWS Bedrock, Ollama, Strands, and custom HTTP endpoints.
-- **20 Standard Benchmarks out-of-the-box**: GSM8K, BIG-Bench Hard, HotpotQA, ToxiGen, MT-Bench, MBPP, and more — all categorised by the agent type they target.
+- **19 Standard Benchmarks out-of-the-box**: GSM8K, BIG-Bench Hard, HotpotQA, ToxiGen, MT-Bench, MBPP, and more — all categorised by the agent type they target.
 - **23 Chaos Injections ready to run**: 12 client-side payload mutations + 11 server-side middleware injections — all text-based, no GPU or vision dependencies.
 - **Automatic Eval Asset Generation**: Poor benchmark scores automatically produce `traces.json`, `evals.json`, and `improvement_prompt.md` — one `cat` command away from Claude Code or Cursor.
 
+---
+
 ## ⚡️ Quick Start
 
+### Option A — Let Claude Code or Cursor set it up for you (30 seconds)
+
+Open Claude Code, Cursor, or any AI coding assistant and paste this prompt:
+
+```
+Set up EvalMonkey in my project so I can benchmark my AI agent.
+
+1. Clone https://github.com/Corbell-AI/evalmonkey into a sibling folder
+2. Run: pip install -e . inside that folder
+3. Copy .env.example to .env and ask me which LLM provider I want to use as the benchmark judge (OpenAI, Anthropic, Bedrock, or Ollama) — then fill in the correct key
+4. Run: evalmonkey init --framework <my_framework> --name "My Agent" --port <my_port>
+   Use the framework my agent is built with (crewai / langchain / openai / bedrock / autogen / ollama / strands / custom)
+5. Show me the generated evalmonkey.yaml and ask me to confirm the agent URL and response path are correct
+6. Run a quick smoke test: evalmonkey run-benchmark --scenario gsm8k --sample-agent rag_app --limit 2
+   to confirm everything is wired up correctly
+7. Then run the real benchmark against my agent: evalmonkey run-benchmark --scenario mmlu --limit 5
+8. Show me the score and explain what it means
+```
+
+> The agent will handle cloning, installing, configuring your `.env`, and running the first benchmark — all without you typing a single command.
+
+---
+
+### Option B — Manual Setup (5 minutes)
+
+**1. Install**
 ```bash
 git clone https://github.com/Corbell-AI/evalmonkey
 cd evalmonkey
 pip install -e .
 ```
 
-**Step 1 — Run this once inside your agent's project folder:**
+**2. Configure your LLM key** (used only as the evaluation judge — never for your agent)
 ```bash
-cd /your/crewai-project       # wherever your agent lives
-evalmonkey init --framework crewai --name "My Research Crew" --port 8000
+cp .env.example .env
 ```
-This auto-generates a pre-filled `evalmonkey.yaml` with the correct request/response format for your framework. Supported: `crewai`, `langchain`, `openai`, `bedrock`, `autogen`, `ollama`, `strands`, `custom`.
-
-**Step 2 — Edit the two settings that matter:**
-```yaml
-# evalmonkey.yaml — generated for CrewAI
-agent:
-  name: "My Research Crew"
-  framework: crewai
-  url: http://localhost:8000/chat       # ← where your agent listens
-  request_key: message
-  response_path: reply
-
-  # ← EvalMonkey will start this for you automatically!
-  # It spawns the process, waits for it to turn on, benchmarks, then stops it.
-  agent_command: "python src/agent.py"  # or: uvicorn src.agent:app --port 8000
-  agent_startup_wait: 3                 # seconds to wait after launch
-
-eval_model: "gpt-4o"   # ← the LLM used as benchmark judge
-```
-
-**Step 3 — Run everything. EvalMonkey starts your agent, benchmarks it, then stops it:**
+Open `.env` and set **one** of these depending on your LLM provider:
 ```bash
-evalmonkey run-benchmark --scenario mmlu
-evalmonkey run-chaos --scenario mmlu --chaos-profile client_prompt_injection
-evalmonkey history --scenario mmlu
+EVAL_MODEL=gpt-4o
+OPENAI_API_KEY=sk-...          # OpenAI
+
+# — OR —
+EVAL_MODEL=anthropic/claude-haiku-4-5
+ANTHROPIC_API_KEY=sk-ant-...   # Anthropic
+
+# — OR —
+EVAL_MODEL=bedrock/anthropic.claude-3-haiku-20240307-v1:0
+AWS_ACCESS_KEY_ID=...          # AWS Bedrock
+
+# — OR — (no key needed)
+EVAL_MODEL=ollama/llama3       # Local Ollama
 ```
 
-> EvalMonkey discovers `evalmonkey.yaml` from the **current working directory** — the same convention used by `pytest`, `promptfoo`, and `docker-compose`. Run all commands from your agent's project folder.
+**3. Smoke test with the built-in sample agent** (no agent of your own needed yet)
+```bash
+evalmonkey run-benchmark --scenario gsm8k --sample-agent rag_app --limit 3
+```
+You should see 3 samples run and a score printed. ✅
+
+**4. Point it at your own agent**
+```bash
+cd /path/to/your/agent/project
+evalmonkey init --framework crewai --name "My Agent" --port 8000
+# Edit the generated evalmonkey.yaml to set your agent's URL and response format
+evalmonkey run-benchmark --scenario mmlu --limit 5
+```
+
+> `evalmonkey.yaml` is discovered from the **current working directory** — same convention as `pytest` and `docker-compose`.
+
+---
 
 
 ## 🤝 Works With Any Agent — No Code Changes Required

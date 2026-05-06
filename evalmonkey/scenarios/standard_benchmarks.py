@@ -101,7 +101,17 @@ def load_standard_benchmark(benchmark_name: str, limit: int = 5) -> List[EvalSce
     Automatically downloads datasets and converts them to standard HTTP scenarios!
     """
     try:
-        from datasets import load_dataset
+        import os
+        # Prevent PyTorch shared-memory multiprocessing on Mac.
+        # Even with streaming=True, HuggingFace datasets can invoke torch_shm_manager
+        # for internal caching — which fails on Mac with "Permission denied".
+        os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+        os.environ.setdefault("OMP_NUM_THREADS", "1")
+        os.environ.setdefault("HF_DATASETS_OFFLINE", "0")
+
+        from datasets import load_dataset, disable_progress_bar, disable_caching
+        disable_progress_bar()
+        disable_caching()  # prevents torch_shm from being invoked for cache writes
     except ImportError:
         raise ImportError("The 'datasets' library is required to run standard benchmarks. Please run 'pip install datasets'.")
 
@@ -132,7 +142,7 @@ def load_standard_benchmark(benchmark_name: str, limit: int = 5) -> List[EvalSce
     elif benchmark_name.lower() == "xlam":
         # A standard function calling benchmark 
         try:
-            dataset = load_dataset("Salesforce/xlam-function-calling-60k", split="train", streaming=True)
+            dataset = load_dataset("Salesforce/xlam-function-calling-60k", split="train", streaming=True, trust_remote_code=True)
             for idx, item in enumerate(dataset):
                 if idx >= limit:
                     break
@@ -172,20 +182,34 @@ def load_standard_benchmark(benchmark_name: str, limit: int = 5) -> List[EvalSce
                 path, name, split, q_col, a_col = hf_map[benchmark_name.lower()]
                 desc = SUPPORTED_BENCHMARKS[benchmark_name.lower()]["description"]
                 print(f"Loading {benchmark_name} from HuggingFace Datasets ({path})...")
-                dataset = load_dataset(path, name, split=split, streaming=True) if name else load_dataset(path, split=split, streaming=True)
+                dataset = load_dataset(path, name, split=split, streaming=True, trust_remote_code=True) if name else load_dataset(path, split=split, streaming=True, trust_remote_code=True)
                 for idx, item in enumerate(dataset):
                     if idx >= limit:
                         break
                     
                     question_text = str(item.get(q_col, "No question"))
+                    expected_answer = str(item.get(a_col, 'Unknown'))
+
                     if benchmark_name.lower() == "mmlu" and "choices" in item:
                         question_text += f"\nChoices: {item['choices']}"
+                        try:
+                            ans_idx = int(expected_answer)
+                            expected_answer = f"Option {ans_idx}: {item['choices'][ans_idx]}"
+                        except (ValueError, IndexError):
+                            pass
+                    elif benchmark_name.lower() == "hella-swag" and "endings" in item:
+                        question_text += f"\nOptions:\n0: {item['endings'][0]}\n1: {item['endings'][1]}\n2: {item['endings'][2]}\n3: {item['endings'][3]}"
+                        try:
+                            ans_idx = int(expected_answer)
+                            expected_answer = f"Option {ans_idx}: {item['endings'][ans_idx]}"
+                        except (ValueError, IndexError):
+                            pass
 
                     scenarios.append(EvalScenario(
                         id=f"{benchmark_name}_{idx}",
                         description=desc,
                         input_payload={"question": question_text},
-                        expected_behavior_rubric=f"Agent MUST deduce or output this answer: {item.get(a_col, 'Unknown')}"
+                        expected_behavior_rubric=f"Agent MUST deduce or output this answer: {expected_answer}"
                     ))
             else:
                 print(f"Dataset mappings for {benchmark_name} are currently stubbed.")
