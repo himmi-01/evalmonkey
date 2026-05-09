@@ -27,7 +27,7 @@ EvalMonkey natively supports evaluating ANY LLM: **AWS Bedrock**, **Azure**, **G
 > **Note on API Keys:** If you have special setups that generate long-lived, static API keys for Bedrock, Azure, or GCP, simply supply them in the `.env`! EvalMonkey seamlessly supports both standard IAM / Service Account credential flows *and* long-term stateless authentication strings.
 
 ## 🚀 At a Glance
-- **8 Agent Frameworks natively supported**: CrewAI, LangChain, OpenAI Agents, Microsoft AutoGen, AWS Bedrock, Ollama, Strands, and custom HTTP endpoints.
+- **11 Agent Frameworks natively supported**: CrewAI, LangChain, LlamaIndex, LangGraph, Pydantic AI, OpenAI Agents, Microsoft AutoGen, AWS Bedrock, Ollama, Strands, and custom HTTP endpoints.
 - **19 Standard Benchmarks out-of-the-box**: GSM8K, BIG-Bench Hard, HotpotQA, ToxiGen, MT-Bench, MBPP, and more — all categorised by the agent type they target.
 - **23 Chaos Injections ready to run**: 12 client-side payload mutations + 11 server-side middleware injections — all text-based, no GPU or vision dependencies.
 - **Automatic Eval Asset Generation**: Poor benchmark scores automatically produce `traces.json`, `evals.json`, and `improvement_prompt.md` — one `cat` command away from Claude Code or Cursor.
@@ -143,12 +143,15 @@ evalmonkey run-benchmark --scenario arc \
 | Framework | Notes |
 |---|---|
 | 🦜 **LangChain** | Any Chain, LCEL pipe, or AgentExecutor behind FastAPI |
+| 🦙 **LlamaIndex** | Any QueryEngine, ChatEngine, or ReActAgent |
+| 🕸️ **LangGraph** | Any compiled StateGraph or MessageGraph |
+| 🛡️ **Pydantic AI** | Any validated Agent returning structured or text data |
 | 🤖 **CrewAI** | Any Crew behind a `/chat` or custom endpoint |
 | ✨ **OpenAI Agents SDK** | Native OpenAI Chat Completions format supported via `--response-path` |
 | ☁️ **AWS Bedrock / Agent Core** | Any Bedrock endpoint, IAM or long-lived key |
 | 🧩 **Microsoft AutoGen** | Any ConversableAgent behind HTTP |
 | 🦙 **Ollama** | Running locally at `http://localhost:11434` |
-| 🧵 **Strands SDK** | Built-in sample apps included |
+| 🧬 **Strands** | Enterprise support agents and chatbots |
 | 🌐 **Any HTTP Agent** | Flask, Express.js, Go — if it accepts POST it works |
 
 <details>
